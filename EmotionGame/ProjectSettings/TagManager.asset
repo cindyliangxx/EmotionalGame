@@ -15,6 +15,8 @@ TagManager:
   - Drop
   - Ground
   - ClimbArea
+  - Dialogue
+  - GameStateDetector
   layers:
   - Default
   - TransparentFX
@@ -24,7 +26,7 @@ TagManager:
   - UI
   - 
   - PlayerCollider
-  - 
+  - background
   - 
   - 
   - 

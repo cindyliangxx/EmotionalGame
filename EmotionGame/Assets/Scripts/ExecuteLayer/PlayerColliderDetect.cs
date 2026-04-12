@@ -9,6 +9,8 @@ public class PlayerColliderDetect : MonoBehaviour
     public float climbHeight = 2f;
     public float climbSpeed = 2f;
     public float photoSuccessDuration = 2f;
+    public GameObject[] dialogueObjects; // 对话碰撞体所属的空物体数组
+    public AudioSource scene2BGM; // Scene2背景音乐
 
     public event Action OnPhotoSuccess;
     public event Action OnEnterMineArea;
@@ -17,15 +19,19 @@ public class PlayerColliderDetect : MonoBehaviour
     public event Action OnDropHit;
     public event Action OnEnterEnemyGunArea;
     public event Action OnEnterFriendGunArea;
+    public event Action OnEpisode1Complete; // Episode1完成事件
+    public event Action OnEnterDialogueArea; // 进入对话区域事件
 
     private bool isInPhotoArea;
     private Vector3 climbStartPosition;
     private float climbProgress;
     private int meetMineCount = -1;
     private int meetDropCount = -1;
+    private int meetDialogueCount = -1; // 对话计数
 
     public int MeetMineCount => meetMineCount;
     public int MeetDropCount => meetDropCount;
+    public int MeetDialogueCount => meetDialogueCount;
     public bool isInClimbArea { get; private set; }
     public bool isClimbing { get; private set; }
 
@@ -67,6 +73,48 @@ public class PlayerColliderDetect : MonoBehaviour
 
     private void Update()
     {
+        // 检查游戏状态，Episode2时禁用重力
+        if (GameManager.Instance != null && GameManager.Instance.CurrentGameState == GameManager.GameState.Episode2)
+        {
+            Rigidbody2D rb = GetComponent<Rigidbody2D>();
+            if (rb != null)
+            {
+                rb.gravityScale = 0;
+                // 保持y轴速度为0，防止掉下去
+                rb.velocity = new Vector2(rb.velocity.x, 0);
+                Debug.Log("PlayerColliderDetect: Episode2 - 禁用重力");
+            }
+            
+            // 播放Scene2背景音乐
+            if (scene2BGM != null && !scene2BGM.isPlaying)
+            {
+                scene2BGM.Play();
+            }
+        }
+        else
+        {
+            // 停止Scene2背景音乐
+            if (scene2BGM != null && scene2BGM.isPlaying)
+            {
+                scene2BGM.Stop();
+            }
+        }
+        
+        // 每帧检查游戏状态，确保重力设置正确
+        if (GameManager.Instance != null)
+        {
+            if (GameManager.Instance.CurrentGameState == GameManager.GameState.Episode2)
+            {
+                Rigidbody2D rb = GetComponent<Rigidbody2D>();
+                if (rb != null && rb.gravityScale != 0)
+                {
+                    rb.gravityScale = 0;
+                    rb.velocity = new Vector2(rb.velocity.x, 0);
+                    Debug.Log("PlayerColliderDetect: 强制禁用重力");
+                }
+            }
+        }
+        
         HandleClimbing();
         HandleMovementInClimbArea();
         
@@ -87,10 +135,23 @@ public class PlayerColliderDetect : MonoBehaviour
             
             Debug.Log("PlayerColliderDetect: 按下AD键离开爬墙区域");
         }
+        
+        // 检测左键点击（Episode1）
+        if (Input.GetMouseButtonDown(0) && GameManager.Instance != null && GameManager.Instance.CurrentGameState == GameManager.GameState.Episode1)
+        {
+            Debug.Log("PlayerColliderDetect: Episode1 检测到左键点击");
+            OnEpisode1Complete?.Invoke();
+        }
     }
 
     private void HandleJumpOrClimb()
     {
+        // 检查游戏状态，如果是Episode1则不处理跳跃/攀爬
+        if (GameManager.Instance != null && GameManager.Instance.CurrentGameState == GameManager.GameState.Episode1)
+        {
+            return;
+        }
+        
         Debug.Log($"PlayerColliderDetect: 接收到跳跃/攀爬事件 - isInClimbArea: {isInClimbArea}, isClimbing: {isClimbing}");
         if (isInClimbArea && !isClimbing)
         {
@@ -108,6 +169,12 @@ public class PlayerColliderDetect : MonoBehaviour
 
     private void HandleTryTakePhoto()
     {
+        // 检查游戏状态，如果是Episode1则不处理拍照
+        if (GameManager.Instance != null && GameManager.Instance.CurrentGameState == GameManager.GameState.Episode1)
+        {
+            return;
+        }
+        
         if (isInPhotoArea && playerController != null && !playerController.isTakingPhotos)
         {
             OnPhotoSuccess?.Invoke();
@@ -319,6 +386,43 @@ public class PlayerColliderDetect : MonoBehaviour
                 {
                     // 确定是哪个友军枪，使用meetDropCount作为索引
                     gunController.OnPlayerEnterFriendGunArea(meetDropCount);
+                }
+            }
+            // 新增：对话碰撞体检测
+            else if (tag == "Dialogue")
+            {
+                // 检查游戏状态，只在Episode2处理
+                if (GameManager.Instance != null && GameManager.Instance.CurrentGameState == GameManager.GameState.Episode2)
+                {
+                    meetDialogueCount++;
+                    Debug.Log($"进入对话区域，当前对话计数: {meetDialogueCount}");
+                    
+                    // 触发进入对话区域事件
+                    OnEnterDialogueArea?.Invoke();
+                    
+                    // 销毁对应索引的对话物体
+                    if (dialogueObjects != null && meetDialogueCount < dialogueObjects.Length)
+                    {
+                        GameObject dialogueObject = dialogueObjects[meetDialogueCount];
+                        if (dialogueObject != null)
+                        {
+                            Destroy(dialogueObject);
+                            Debug.Log($"销毁对话物体: {dialogueObject.name}");
+                        }
+                    }
+                }
+            }
+            // 新增：游戏状态检测碰撞体
+            else if (tag == "GameStateDetector")
+            {
+                // 检查是否是Episode2末尾的状态检测
+                if (GameManager.Instance != null && GameManager.Instance.CurrentGameState == GameManager.GameState.Episode2)
+                {
+                    Debug.Log("检测到游戏状态切换触发器，切换到Episode3");
+                    GameManager.Instance.ChangeGameState(GameManager.GameState.Episode3);
+                    // 切换到Scene3场景
+                    UnityEngine.SceneManagement.SceneManager.LoadScene("Scene3");
+                    Debug.Log("切换到Scene3场景");
                 }
             }
     }

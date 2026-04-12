@@ -28,6 +28,7 @@ public class PlayerController : MonoBehaviour
 
     private void OnEnable()
     {
+        // 尝试查找PlayerInputManager实例
         PlayerInputManager pim = FindObjectOfType<PlayerInputManager>();
         if (pim != null)
         {
@@ -35,6 +36,10 @@ public class PlayerController : MonoBehaviour
             pim.OnMoveRight += HandleMoveRight;
             pim.OnJumpOrClimb += HandleJumpOrClimb;
             pim.OnTryMakePhoneCall += HandleTryMakePhoneCall;
+        }
+        else
+        {
+            Debug.Log("PlayerController: 警告 - 未找到PlayerInputManager实例");
         }
     }
 
@@ -57,20 +62,106 @@ public class PlayerController : MonoBehaviour
 
     private void HandleMoveLeft()
     {
-        transform.Translate(Vector2.left * moveSpeed * Time.deltaTime);
-        isMoving = true;
-        brakeTimer = brakeDuration;
+        // 检查游戏状态，Episode1禁止移动，Episode2只允许移动
+        if (GameManager.Instance != null)
+        {
+            if (GameManager.Instance.CurrentGameState == GameManager.GameState.Episode1)
+            {
+                return; // Episode1禁止移动
+            }
+            else if (GameManager.Instance.CurrentGameState == GameManager.GameState.Episode2)
+            {
+                // Episode2允许移动
+                if (rb != null)
+                {
+                    rb.velocity = new Vector2(-moveSpeed, rb.velocity.y);
+                }
+                else
+                {
+                    transform.Translate(Vector2.left * moveSpeed * Time.deltaTime);
+                }
+                isMoving = true;
+                brakeTimer = brakeDuration;
+            }
+            else if (GameManager.Instance.CurrentGameState == GameManager.GameState.Episode3)
+            {
+                // Episode3默认允许移动
+                if (rb != null)
+                {
+                    rb.velocity = new Vector2(-moveSpeed, rb.velocity.y);
+                }
+                else
+                {
+                    transform.Translate(Vector2.left * moveSpeed * Time.deltaTime);
+                }
+                isMoving = true;
+                brakeTimer = brakeDuration;
+            }
+        }
+        else
+        {
+            // 游戏管理器未初始化时默认允许移动
+            transform.Translate(Vector2.left * moveSpeed * Time.deltaTime);
+            isMoving = true;
+            brakeTimer = brakeDuration;
+        }
     }
 
     private void HandleMoveRight()
     {
-        transform.Translate(Vector2.right * moveSpeed * Time.deltaTime);
-        isMoving = true;
-        brakeTimer = brakeDuration;
+        // 检查游戏状态，Episode1禁止移动，Episode2只允许移动
+        if (GameManager.Instance != null)
+        {
+            if (GameManager.Instance.CurrentGameState == GameManager.GameState.Episode1)
+            {
+                return; // Episode1禁止移动
+            }
+            else if (GameManager.Instance.CurrentGameState == GameManager.GameState.Episode2)
+            {
+                // Episode2允许移动
+                if (rb != null)
+                {
+                    rb.velocity = new Vector2(moveSpeed, rb.velocity.y);
+                }
+                else
+                {
+                    transform.Translate(Vector2.right * moveSpeed * Time.deltaTime);
+                }
+                isMoving = true;
+                brakeTimer = brakeDuration;
+            }
+            else if (GameManager.Instance.CurrentGameState == GameManager.GameState.Episode3)
+            {
+                // Episode3默认允许移动
+                if (rb != null)
+                {
+                    rb.velocity = new Vector2(moveSpeed, rb.velocity.y);
+                }
+                else
+                {
+                    transform.Translate(Vector2.right * moveSpeed * Time.deltaTime);
+                }
+                isMoving = true;
+                brakeTimer = brakeDuration;
+            }
+        }
+        else
+        {
+            // 游戏管理器未初始化时默认允许移动
+            transform.Translate(Vector2.right * moveSpeed * Time.deltaTime);
+            isMoving = true;
+            brakeTimer = brakeDuration;
+        }
     }
 
     private void HandleJumpOrClimb()
     {
+        // 检查游戏状态，Episode1禁止跳跃/攀爬
+        if (GameManager.Instance != null && GameManager.Instance.CurrentGameState == GameManager.GameState.Episode1)
+        {
+            return;
+        }
+        
         // 检查是否在爬墙区域
         PlayerColliderDetect pcd = FindObjectOfType<PlayerColliderDetect>();
         if (pcd != null && pcd.isInClimbArea)
@@ -88,6 +179,12 @@ public class PlayerController : MonoBehaviour
 
     private void HandleTryMakePhoneCall()
     {
+        // 检查游戏状态，Episode1和Episode2禁止打电话
+        if (GameManager.Instance != null && (GameManager.Instance.CurrentGameState == GameManager.GameState.Episode1 || GameManager.Instance.CurrentGameState == GameManager.GameState.Episode2))
+        {
+            return;
+        }
+        
         if (!isMoving && !isJumping && !isTakingPhotos)
         {
             OnMakePhoneCall?.Invoke();
